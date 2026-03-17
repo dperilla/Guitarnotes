@@ -1,0 +1,24 @@
+{
+  "name": "Entrenador de Guitarra",
+  "short_name": "Guitarra",
+  "description": "Aprende las notas de la guitarra en todo el mástil",
+  "start_url": "./guitar_trainer.html",
+  "display": "standalone",
+  "background_color": "#0f0e0c",
+  "theme_color": "#0f0e0c",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
