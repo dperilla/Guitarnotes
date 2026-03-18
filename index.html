@@ -297,6 +297,7 @@
     <button class="mode-btn" id="btn-find"    onclick="setMode('find')">Quiz: encuentra la nota</button>
     <button class="mode-btn" id="btn-scale"   onclick="setMode('scale')">Escala / tonalidad</button>
     <button class="mode-btn" id="btn-pattern" onclick="setMode('pattern')">Patrones</button>
+    <button class="mode-btn" id="btn-ladder"  onclick="setMode('ladder')">Escalera</button>
   </div>
 
   <div id="legend-area" class="legend">
@@ -333,11 +334,32 @@
     <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#50b060"></span>E</span>
     <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#5090e0"></span>D</span>
   </div>
+  <div id="zigzag-legend" class="caged-legend" style="margin-bottom:1rem;">
+    <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#c8a96e"></span>Posición de la nota</span>
+    <span class="caged-legend-item" style="color:var(--text3);font-size:0.68rem;">
+      <span style="color:#c8a96e;font-weight:700;">+N tr</span> = trastes a mover →
+    </span>
+    <span class="caged-legend-item" style="color:var(--text3);font-size:0.68rem;">
+      <span style="color:#7bbfef;font-weight:700;">▼/▲ Nc</span> = cuerdas a bajar/subir
+    </span>
+  </div>
+
+  <!-- Ladder controls -->
+  <div id="ladder-controls" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:0.8rem;align-items:center;">
+    <span class="ctrl-label">Nota raiz:</span>
+    <div id="ladder-note-btns" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+  </div>
+  <div id="ladder-legend" style="display:none;flex-wrap:wrap;gap:14px;margin-bottom:0.8rem;font-size:11px;font-family:monospace;color:var(--text2);">
+    <span style="color:#BA7517;">- - peldano corto (+2)</span>
+    <span style="color:#534AB7;">--- peldano largo (+3)</span>
+    <span style="color:#1D9E75;">... conexion / ascensor</span>
+  </div>
 
   <div class="fretboard-wrap">
     <div class="fretboard-container" id="fretboard-container">
       <div id="fretboard" class="fretboard"></div>
       <svg id="pattern-svg" style="display:none;"></svg>
+      <svg id="ladder-svg" style="display:none;"></svg>
     </div>
   </div>
 
@@ -769,6 +791,7 @@ function setPatType(t){
   document.getElementById('pat-zigzag').classList.toggle('active',t==='zigzag');
   document.getElementById('pat-caged').classList.toggle('active',t==='caged');
   document.getElementById('caged-legend').style.display=t==='caged'?'flex':'none';
+  document.getElementById('zigzag-legend').style.display=t==='zigzag'?'flex':'none';
   drawPattern();
 }
 
@@ -793,51 +816,125 @@ function drawPattern(){
 }
 
 function drawZigzag(svg){
-  // Collect all positions of patNote sorted by fret then string
+  // Collect positions sorted by fret, then by string descending (high string first within same fret)
   const positions = [];
   for(let f=0;f<NUM_FRETS;f++){
-    for(let s=0;s<6;s++){
+    for(let s=5;s>=0;s--){  // s=5 high E (top), s=0 low E (bottom)
       if(noteAt(s,f)===patNote) positions.push({s,f});
     }
   }
 
-  // Draw connecting lines between consecutive positions
+  const CELL_H=48, CELL_W=58;
+
+  // Draw step annotations between consecutive notes
   for(let i=0;i<positions.length-1;i++){
-    const a=getCellCenter(positions[i].s, positions[i].f);
-    const b=getCellCenter(positions[i+1].s, positions[i+1].f);
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
-    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
-    line.setAttribute('stroke','#c8a96e');
-    line.setAttribute('stroke-width','2');
-    line.setAttribute('stroke-opacity','0.55');
-    line.setAttribute('stroke-dasharray','4 3');
-    svg.appendChild(line);
+    const cur=positions[i], nxt=positions[i+1];
+    const a=getCellCenter(cur.s, cur.f);
+    const b=getCellCenter(nxt.s, nxt.f);
+
+    // String change: how many strings down (positive = toward low E = downward visually)
+    const dStr = cur.s - nxt.s; // positive = moving toward lower strings (down visually)
+    // Fret change
+    const dFret = nxt.f - cur.f;
+
+    // Draw an L-shaped path: horizontal first, then vertical
+    // Step 1: move horizontally from a to x=b.x, y=a.y
+    // Step 2: move vertically from (b.x, a.y) to b
+    const mx = b.x, my = a.y;
+
+    // Horizontal segment
+    if(Math.abs(dFret)>0){
+      const hline=document.createElementNS('http://www.w3.org/2000/svg','line');
+      hline.setAttribute('x1',a.x); hline.setAttribute('y1',a.y);
+      hline.setAttribute('x2',mx);  hline.setAttribute('y2',my);
+      hline.setAttribute('stroke','#c8a96e'); hline.setAttribute('stroke-width','1.5');
+      hline.setAttribute('stroke-opacity','0.4'); hline.setAttribute('stroke-dasharray','5 3');
+      svg.appendChild(hline);
+
+      // Fret label above the horizontal segment
+      const midX=(a.x+mx)/2, midY=a.y-12;
+      const fbox=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      fbox.setAttribute('x',midX-14); fbox.setAttribute('y',midY-8);
+      fbox.setAttribute('width',28); fbox.setAttribute('height',14);
+      fbox.setAttribute('rx',3); fbox.setAttribute('fill','#1a1916');
+      fbox.setAttribute('stroke','#8a6f3a'); fbox.setAttribute('stroke-width','0.5');
+      svg.appendChild(fbox);
+      const ftxt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      ftxt.setAttribute('x',midX); ftxt.setAttribute('y',midY+1);
+      ftxt.setAttribute('text-anchor','middle'); ftxt.setAttribute('dominant-baseline','middle');
+      ftxt.setAttribute('font-size','8'); ftxt.setAttribute('font-weight','700');
+      ftxt.setAttribute('font-family','Space Mono, monospace');
+      ftxt.setAttribute('fill','#c8a96e');
+      ftxt.textContent=(dFret>0?'+':'')+dFret+' tr';
+      svg.appendChild(ftxt);
+    }
+
+    // Vertical segment
+    if(dStr!==0){
+      const vline=document.createElementNS('http://www.w3.org/2000/svg','line');
+      vline.setAttribute('x1',mx); vline.setAttribute('y1',my);
+      vline.setAttribute('x2',b.x); vline.setAttribute('y2',b.y);
+      vline.setAttribute('stroke','#5090e0'); vline.setAttribute('stroke-width','1.5');
+      vline.setAttribute('stroke-opacity','0.5'); vline.setAttribute('stroke-dasharray','3 3');
+      svg.appendChild(vline);
+
+      // Arrow head at end of vertical
+      const arrowY=b.y+(dStr<0?-1:1)*6; // points toward destination
+      const arrowDir=dStr<0?-1:1;
+      const arrow=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      const ax=b.x, ay=b.y-arrowDir*18;
+      arrow.setAttribute('points',`${ax},${ay+arrowDir*6} ${ax-4},${ay} ${ax+4},${ay}`);
+      arrow.setAttribute('fill','#5090e0'); arrow.setAttribute('opacity','0.7');
+      svg.appendChild(arrow);
+
+      // String label beside vertical segment
+      const svgLX=mx+8, svgLY=(my+b.y)/2;
+      const sbox=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      sbox.setAttribute('x',svgLX-2); sbox.setAttribute('y',svgLY-8);
+      sbox.setAttribute('width',32); sbox.setAttribute('height',14);
+      sbox.setAttribute('rx',3); sbox.setAttribute('fill','#0e2035');
+      sbox.setAttribute('stroke','#1e5080'); sbox.setAttribute('stroke-width','0.5');
+      svg.appendChild(sbox);
+      const stxt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      stxt.setAttribute('x',svgLX+14); stxt.setAttribute('y',svgLY+1);
+      stxt.setAttribute('text-anchor','middle'); stxt.setAttribute('dominant-baseline','middle');
+      stxt.setAttribute('font-size','8'); stxt.setAttribute('font-weight','700');
+      stxt.setAttribute('font-family','Space Mono, monospace');
+      stxt.setAttribute('fill','#7bbfef');
+      const absStr=Math.abs(dStr);
+      stxt.textContent=(dStr>0?'▼':'▲')+absStr+'c';
+      svg.appendChild(stxt);
+    }
   }
 
-  // Draw highlighted dots on top
+  // Draw note circles on top
   positions.forEach(({s,f},idx)=>{
     const {x,y}=getCellCenter(s,f);
-    // Glow circle
-    const glow=document.createElementNS('http://www.w3.org/2000/svg','circle');
-    glow.setAttribute('cx',x); glow.setAttribute('cy',y); glow.setAttribute('r',20);
-    glow.setAttribute('fill','rgba(200,169,110,0.08)');
-    svg.appendChild(glow);
-    // Main circle
     const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
-    circle.setAttribute('cx',x); circle.setAttribute('cy',y); circle.setAttribute('r',15);
+    circle.setAttribute('cx',x); circle.setAttribute('cy',y); circle.setAttribute('r',16);
     circle.setAttribute('fill','#c8a96e');
-    circle.setAttribute('stroke','#8a6f3a'); circle.setAttribute('stroke-width','1');
+    circle.setAttribute('stroke','#8a6f3a'); circle.setAttribute('stroke-width','1.5');
     svg.appendChild(circle);
-    // Index number
-    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('x',x); txt.setAttribute('y',y+1);
-    txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
-    txt.setAttribute('font-size','9'); txt.setAttribute('font-weight','700');
-    txt.setAttribute('font-family','Space Mono, monospace');
-    txt.setAttribute('fill','#0f0e0c');
-    txt.textContent=NOTES_LAT[patNote];
-    svg.appendChild(txt);
+
+    // Order number
+    const numtxt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    numtxt.setAttribute('x',x); numtxt.setAttribute('y',y-4);
+    numtxt.setAttribute('text-anchor','middle'); numtxt.setAttribute('dominant-baseline','middle');
+    numtxt.setAttribute('font-size','7'); numtxt.setAttribute('font-weight','700');
+    numtxt.setAttribute('font-family','Space Mono, monospace');
+    numtxt.setAttribute('fill','#0f0e0c');
+    numtxt.textContent=idx+1;
+    svg.appendChild(numtxt);
+
+    // Note name
+    const notetxt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    notetxt.setAttribute('x',x); notetxt.setAttribute('y',y+5);
+    notetxt.setAttribute('text-anchor','middle'); notetxt.setAttribute('dominant-baseline','middle');
+    notetxt.setAttribute('font-size','8'); notetxt.setAttribute('font-weight','700');
+    notetxt.setAttribute('font-family','Space Mono, monospace');
+    notetxt.setAttribute('fill','#0f0e0c');
+    notetxt.textContent=NOTES_LAT[patNote];
+    svg.appendChild(notetxt);
   });
 }
 
