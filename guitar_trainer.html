@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrenador de Guitarra</title>
+<meta name="description" content="Aprende las notas de la guitarra en todo el mástil">
+<meta name="theme-color" content="#0f0e0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Guitarra">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0e0c;
+    --bg2: #1a1916;
+    --bg3: #242320;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ece3;
+    --text2: #8a8577;
+    --text3: #5a5650;
+    --blue-bg: #0e2035;
+    --blue-border: #1e5080;
+    --blue-text: #7bbfef;
+    --purple-bg: #1a1535;
+    --purple-border: #4a3f90;
+    --purple-text: #a99ef5;
+    --green-bg: #0a2318;
+    --green-border: #1a6644;
+    --green-text: #4dba86;
+    --red-bg: #2a0e0e;
+    --red-text: #e06060;
+    --accent: #c8a96e;
+    --accent2: #8a6f3a;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 1.2rem 2rem 1rem;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    flex: 1;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    color: var(--text3);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+
+  .header-btns { display: flex; gap: 6px; align-items: center; }
+
+  .icon-btn {
+    width: 32px; height: 32px;
+    border: 0.5px solid var(--border2);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { background: var(--bg3); color: var(--accent); border-color: var(--accent2); }
+  .icon-btn.on { color: var(--accent); border-color: var(--accent2); background: var(--bg3); }
+
+  .svg-icon { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+
+  main { padding: 1.5rem 2rem 3rem; max-width: 1100px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1.25rem; align-items: center; }
+
+  .ctrl-label {
+    font-size: 0.7rem; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-right: 4px; font-family: 'Space Mono', monospace;
+  }
+
+  .mode-btn {
+    padding: 5px 14px;
+    border: 0.5px solid var(--border2); border-radius: 3px;
+    background: transparent; color: var(--text2);
+    cursor: pointer; font-size: 0.78rem;
+    font-family: 'Syne', sans-serif; font-weight: 400;
+    letter-spacing: 0.03em; transition: all 0.15s;
+  }
+  .mode-btn:hover { background: var(--bg3); color: var(--text); }
+  .mode-btn.active { background: var(--bg3); color: var(--accent); border-color: var(--accent2); font-weight: 700; }
+
+  .legend {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    margin-bottom: 1.25rem; font-size: 0.72rem;
+    color: var(--text3); align-items: center;
+    font-family: 'Space Mono', monospace;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  .fretboard-wrap { overflow-x: auto; padding-bottom: 6px; }
+
+  .fretboard {
+    display: grid;
+    border: 0.5px solid var(--border2); border-radius: 4px;
+    overflow: hidden; background: var(--bg2); min-width: max-content;
+  }
+
+  .fret-cell {
+    width: 58px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    border-right: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
+    position: relative; cursor: pointer; transition: background 0.1s;
+  }
+  .fret-cell:hover { background: var(--bg3); }
+  .fret-cell.header {
+    background: var(--bg); cursor: default;
+    font-size: 0.68rem; color: var(--text3);
+    font-family: 'Space Mono', monospace; height: 28px;
+  }
+  .fret-cell.string-label {
+    background: var(--bg); cursor: default;
+    font-size: 0.7rem; font-family: 'Space Mono', monospace;
+    color: var(--text2); width: 44px; min-width: 44px;
+  }
+
+  .note-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.68rem; font-weight: 700;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: -0.02em; transition: transform 0.12s;
+    user-select: none;
+  }
+  .dot-natural { background: var(--blue-bg); color: var(--blue-text); border: 0.5px solid var(--blue-border); }
+  .dot-sharp   { background: var(--purple-bg); color: var(--purple-text); border: 0.5px solid var(--purple-border); }
+  .dot-root    { background: #1a5c3a; color: #5ee8a0; border: 0.5px solid #2db870; }
+  .dot-hidden  { background: transparent; border: 0.5px solid var(--border); color: var(--text3); }
+  .dot-correct { background: var(--green-bg); color: var(--green-text); border: 0.5px solid var(--green-border); animation: pop 0.2s ease; }
+  .dot-wrong   { background: var(--red-bg); color: var(--red-text); border: 0.5px solid #6e2020; animation: shake 0.3s ease; }
+
+  @keyframes pop   { 0%{transform:scale(1)}50%{transform:scale(1.18)}100%{transform:scale(1)} }
+  @keyframes shake { 0%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}100%{transform:translateX(0)} }
+  @keyframes ripple {
+    0%   { box-shadow: 0 0 0 0 rgba(200,169,110,0.45); }
+    70%  { box-shadow: 0 0 0 9px rgba(200,169,110,0); }
+    100% { box-shadow: 0 0 0 0 rgba(200,169,110,0); }
+  }
+  .ringing { animation: ripple 0.55s ease-out; }
+
+  .fret-marker {
+    position: absolute; bottom: 3px; left: 50%;
+    transform: translateX(-50%); display: flex; gap: 3px;
+  }
+  .fret-marker-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border2); }
+
+  .quiz-panel {
+    margin-top: 1.25rem; padding: 1rem 1.25rem;
+    background: var(--bg2); border: 0.5px solid var(--border2);
+    border-radius: 4px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  }
+  .quiz-question { font-size: 0.9rem; color: var(--text); flex: 1; min-width: 220px; line-height: 1.5; }
+  .quiz-question span { font-weight: 700; font-size: 1.05rem; color: var(--accent); font-family: 'Space Mono', monospace; }
+  .quiz-question small { display: block; font-size: 0.7rem; color: var(--text3); margin-top: 3px; font-family: 'Space Mono', monospace; }
+  .stats { display: flex; gap: 18px; font-size: 0.75rem; color: var(--text3); font-family: 'Space Mono', monospace; }
+  .stat-val { color: var(--accent); font-weight: 700; }
+  .feedback-msg { font-size: 0.8rem; min-width: 80px; font-weight: 700; font-family: 'Space Mono', monospace; }
+  .feedback-ok  { color: var(--green-text); }
+  .feedback-err { color: var(--red-text); }
+  .next-btn {
+    padding: 5px 14px; border: 0.5px solid var(--border2); border-radius: 3px;
+    background: transparent; color: var(--text2); cursor: pointer;
+    font-size: 0.78rem; font-family: 'Space Mono', monospace; transition: all 0.15s;
+  }
+  .next-btn:hover { background: var(--bg3); color: var(--accent); border-color: var(--accent2); }
+
+  /* Note picker */
+  .note-picker {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 0.9rem; padding-top: 0.9rem;
+    border-top: 0.5px solid var(--border);
+    width: 100%;
+  }
+  .note-picker-label {
+    width: 100%; font-size: 0.68rem; color: var(--text3);
+    font-family: 'Space Mono', monospace; text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 2px;
+  }
+  .note-key {
+    padding: 6px 0; width: 54px; text-align: center;
+    border: 0.5px solid var(--border2); border-radius: 3px;
+    background: transparent; color: var(--text2);
+    cursor: pointer; font-size: 0.75rem; font-weight: 700;
+    font-family: 'Space Mono', monospace; transition: all 0.12s;
+  }
+  .note-key:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+  .note-key.sharp { border-color: var(--purple-border); color: var(--purple-text); background: var(--purple-bg); }
+  .note-key.sharp:hover { background: #2a2050; }
+  .note-key.picked-ok  { background: var(--green-bg); color: var(--green-text); border-color: var(--green-border); animation: pop 0.2s ease; pointer-events: none; }
+  .note-key.picked-err { background: var(--red-bg); color: var(--red-text); border-color: #6e2020; animation: shake 0.3s ease; pointer-events: none; }
+  .note-key.disabled   { opacity: 0.25; pointer-events: none; }
+
+  .scale-controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1.25rem; align-items: center; }
+  .root-btn {
+    padding: 4px 10px; border: 0.5px solid var(--border); border-radius: 3px;
+    background: transparent; color: var(--text2); cursor: pointer;
+    font-size: 0.72rem; font-family: 'Space Mono', monospace; transition: all 0.12s;
+  }
+  .root-btn:hover { background: var(--bg3); }
+  .root-btn.active { background: var(--green-bg); color: var(--green-text); border-color: var(--green-border); }
+
+  select {
+    font-size: 0.78rem; padding: 4px 10px;
+    border: 0.5px solid var(--border2); border-radius: 3px;
+    background: var(--bg2); color: var(--text);
+    font-family: 'Space Mono', monospace; cursor: pointer; outline: none;
+  }
+  select:focus { border-color: var(--accent2); }
+  .fret-highlight { background: rgba(200,169,110,0.07) !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Entrenador de Guitarra</h1>
+  <span class="subtitle">mástil completo · solfeo latino · 12 trastes</span>
+  <div class="header-btns">
+    <button class="icon-btn on" id="sound-btn" onclick="toggleSound()" title="Sonido">
+      <svg class="svg-icon" id="sound-icon" viewBox="0 0 24 24">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="fs-btn" onclick="toggleFullscreen()" title="Pantalla completa">
+      <svg class="svg-icon" id="fs-icon" viewBox="0 0 24 24">
+        <polyline points="15 3 21 3 21 9"/>
+        <polyline points="9 21 3 21 3 15"/>
+        <line x1="21" y1="3" x2="14" y2="10"/>
+        <line x1="3" y1="21" x2="10" y2="14"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="controls">
+    <span class="ctrl-label">Modo:</span>
+    <button class="mode-btn active" id="btn-explore" onclick="setMode('explore')">Explorar</button>
+    <button class="mode-btn" id="btn-quiz"    onclick="setMode('quiz')">Quiz: adivina la nota</button>
+    <button class="mode-btn" id="btn-find"    onclick="setMode('find')">Quiz: encuentra la nota</button>
+    <button class="mode-btn" id="btn-scale"   onclick="setMode('scale')">Escala / tonalidad</button>
+  </div>
+
+  <div id="legend-area" class="legend">
+    <span class="legend-item"><span class="legend-dot" style="background:#0e2035;border:0.5px solid #1e5080"></span> Natural</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#1a1535;border:0.5px solid #4a3f90"></span> Sostenido ♯</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#1a5c3a;border:0.5px solid #2db870"></span> Tónica / raíz</span>
+  </div>
+
+  <div id="scale-controls" class="scale-controls" style="display:none;">
+    <span class="ctrl-label">Raíz:</span>
+    <div id="root-btns" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+    <span class="ctrl-label" style="margin-left:8px;">Escala:</span>
+    <select id="scale-select">
+      <option value="major">Mayor</option>
+      <option value="minor">Menor natural</option>
+      <option value="pentatonic_major">Pentatónica mayor</option>
+      <option value="pentatonic_minor">Pentatónica menor</option>
+      <option value="blues">Blues</option>
+    </select>
+  </div>
+
+  <div class="fretboard-wrap">
+    <div id="fretboard" class="fretboard"></div>
+  </div>
+
+  <div id="quiz-panel" class="quiz-panel" style="display:none;">
+    <div class="quiz-question" id="quiz-text">—</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div class="feedback-msg" id="feedback-msg"></div>
+      <div class="stats">
+        <span>Correctas: <span class="stat-val" id="stat-ok">0</span></span>
+        <span>Racha: <span class="stat-val" id="stat-streak">0</span></span>
+      </div>
+      <button class="next-btn" onclick="nextQuestion()">Siguiente →</button>
+    </div>
+    <div class="note-picker" id="note-picker" style="display:none;">
+      <div class="note-picker-label">Selecciona la nota:</div>
+      <div id="note-keys" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ── DATA ─────────────────────────────────────────────────────── */
+const NOTES_LAT = ['Do','Do♯','Re','Re♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si'];
+const OPEN_STR  = [4,9,2,7,11,4]; // Mi₂ La₂ Re₃ Sol₃ Si₃ Mi₄
+const STR_NAMES = ['6','5','4','3','2','1'];
+const OPEN_FREQ = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63];
+const MARKERS   = [3,5,7,9,12];
+const DOUBLE_MK = [12];
+const NUM_FRETS = 13;
+const SCALES = {
+  major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10],
+  pentatonic_major:[0,2,4,7,9], pentatonic_minor:[0,3,5,7,10], blues:[0,3,5,6,7,10]
+};
+
+let mode='explore', quizCorrect=0, quizStreak=0, quizTarget=null;
+let selectedRoot=0, selectedScale='major', revealedCells={};
+let soundEnabled=true, audioCtx=null;
+let findFound=0, findTotal=0, findFoundSet=new Set();
+const noteAt = (s,f) => (OPEN_STR[s]+f)%12;
+
+/* ── AUDIO ─────────────────────────────────────────────────────── */
+function ctx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playNote(strIdx, fret) {
+  if (!soundEnabled) return;
+  try {
+    const ac = ctx();
+    const freq = OPEN_FREQ[strIdx] * Math.pow(2, fret/12);
+    const t = ac.currentTime;
+    const dur = 2.0;
+
+    const out = ac.createGain();
+    out.gain.setValueAtTime(0, t);
+    out.gain.linearRampToValueAtTime(0.35, t+0.005);
+    out.gain.exponentialRampToValueAtTime(0.16, t+0.14);
+    out.gain.exponentialRampToValueAtTime(0.001, t+dur);
+    out.connect(ac.destination);
+
+    // Low-mid body boost
+    const body = ac.createBiquadFilter();
+    body.type='peaking'; body.frequency.value=180; body.Q.value=1.0; body.gain.value=5;
+    body.connect(out);
+
+    // Brightness envelope
+    const lp = ac.createBiquadFilter();
+    lp.type='lowpass';
+    lp.frequency.setValueAtTime(5000, t);
+    lp.frequency.exponentialRampToValueAtTime(900, t+0.4);
+    lp.connect(body);
+
+    // Harmonics
+    [[1,0.50,'sawtooth'],[2,0.20,'sawtooth'],[3,0.11,'sine'],[4,0.06,'sine'],[6,0.03,'sine']].forEach(([r,g,tp])=>{
+      const o=ac.createOscillator(), gn=ac.createGain();
+      o.type=tp; o.frequency.value=freq*r;
+      o.detune.value=(Math.random()-0.5)*4;
+      gn.gain.value=g; o.connect(gn); gn.connect(lp);
+      o.start(t); o.stop(t+dur);
+    });
+
+    // Pick attack noise
+    const bufLen=Math.floor(ac.sampleRate*0.035);
+    const buf=ac.createBuffer(1,bufLen,ac.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) data[i]=(Math.random()*2-1)*(1-i/bufLen)**2;
+    const ns=ac.createBufferSource(); ns.buffer=buf;
+    const ng=ac.createGain(); ng.gain.value=0.055;
+    const nf=ac.createBiquadFilter(); nf.type='bandpass';
+    nf.frequency.value=freq*1.8; nf.Q.value=1.2;
+    ns.connect(nf); nf.connect(ng); ng.connect(out);
+    ns.start(t);
+  } catch(e){}
+}
+
+function toggleSound() {
+  soundEnabled=!soundEnabled;
+  const btn=document.getElementById('sound-btn');
+  const ic=document.getElementById('sound-icon');
+  btn.classList.toggle('on', soundEnabled);
+  ic.innerHTML = soundEnabled
+    ? `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+       <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+       <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>`
+    : `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+       <line x1="23" y1="9" x2="17" y2="15"/>
+       <line x1="17" y1="9" x2="23" y2="15"/>`;
+}
+
+/* ── FULLSCREEN ─────────────────────────────────────────────────── */
+const FS_IN  = `<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>`;
+const FS_OUT = `<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>`;
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    const el=document.documentElement;
+    (el.requestFullscreen||el.webkitRequestFullscreen).call(el);
+    document.getElementById('fs-icon').innerHTML=FS_OUT;
+    document.getElementById('fs-btn').classList.add('on');
+  } else {
+    (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+    document.getElementById('fs-icon').innerHTML=FS_IN;
+    document.getElementById('fs-btn').classList.remove('on');
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  if (!document.fullscreenElement) {
+    document.getElementById('fs-icon').innerHTML=FS_IN;
+    document.getElementById('fs-btn').classList.remove('on');
+  }
+});
+
+/* ── BOARD ──────────────────────────────────────────────────────── */
+function buildBoard() {
+  const fb=document.getElementById('fretboard');
+  fb.innerHTML='';
+  fb.style.gridTemplateColumns=`44px repeat(${NUM_FRETS},58px)`;
+
+  const corner=document.createElement('div');
+  corner.className='fret-cell header string-label'; corner.style.height='28px';
+  fb.appendChild(corner);
+
+  for(let f=0;f<NUM_FRETS;f++){
+    const h=document.createElement('div'); h.className='fret-cell header';
+    h.textContent=f===0?'0':f;
+    if(DOUBLE_MK.includes(f)) h.style.color='var(--accent)';
+    fb.appendChild(h);
+  }
+
+  for(let s=5;s>=0;s--){
+    const lbl=document.createElement('div'); lbl.className='fret-cell string-label';
+    lbl.textContent=STR_NAMES[s]; fb.appendChild(lbl);
+
+    for(let f=0;f<NUM_FRETS;f++){
+      const cell=document.createElement('div');
+      cell.className='fret-cell'; cell.id=`cell-${s}-${f}`;
+      cell.onclick=()=>handleClick(s,f,cell);
+
+      if(MARKERS.includes(f)&&s===2){
+        const mk=document.createElement('div'); mk.className='fret-marker';
+        const count=DOUBLE_MK.includes(f)?2:1;
+        for(let i=0;i<count;i++){const d=document.createElement('div');d.className='fret-marker-dot';mk.appendChild(d);}
+        cell.appendChild(mk);
+      }
+
+      const dot=document.createElement('div'); dot.className='note-dot';
+      renderDot(dot,s,f); cell.appendChild(dot); fb.appendChild(cell);
+    }
+  }
+}
+
+function renderDot(dot,s,f){
+  const ni=noteAt(s,f), label=NOTES_LAT[ni], sharp=label.includes('♯');
+  dot.style.opacity='';
+  if(mode==='explore'){
+    dot.className='note-dot '+(sharp?'dot-sharp':'dot-natural'); dot.textContent=label;
+  } else if(mode==='scale'){
+    const iv=(ni-selectedRoot+12)%12;
+    if(SCALES[selectedScale].includes(iv)){
+      dot.className='note-dot '+(iv===0?'dot-root':(sharp?'dot-sharp':'dot-natural')); dot.textContent=label;
+    } else { dot.className='note-dot dot-hidden'; dot.textContent=''; }
+  } else if(mode==='quiz'){
+    if(revealedCells[`${s}-${f}`]){
+      dot.className='note-dot '+(sharp?'dot-sharp':'dot-natural'); dot.textContent=label;
+    } else { dot.className='note-dot dot-hidden'; dot.textContent='?'; }
+  } else if(mode==='find'){
+    dot.className='note-dot dot-hidden'; dot.textContent='';
+  }
+}
+
+function refreshBoard(){
+  for(let s=0;s<6;s++) for(let f=0;f<NUM_FRETS;f++){
+    const c=document.getElementById(`cell-${s}-${f}`); if(!c) continue;
+    c.style.background=''; c.classList.remove('fret-highlight');
+    const d=c.querySelector('.note-dot'); if(d) renderDot(d,s,f);
+  }
+}
+
+function ring(dot){
+  dot.classList.remove('ringing');
+  void dot.offsetWidth;
+  dot.classList.add('ringing');
+  setTimeout(()=>dot.classList.remove('ringing'),560);
+}
+
+function handleClick(s,f,cell){
+  const ni=noteAt(s,f), dot=cell.querySelector('.note-dot');
+  playNote(s,f);
+  ring(dot);
+
+  if(mode==='explore'||mode==='scale'){
+    dot.style.transform='scale(1.22)'; setTimeout(()=>dot.style.transform='',200);
+    return;
+  }
+  if(mode==='quiz'){
+    const key=`${s}-${f}`; if(revealedCells[key]) return;
+    revealedCells[key]=true;
+    dot.className='note-dot '+(NOTES_LAT[ni].includes('♯')?'dot-sharp':'dot-natural');
+    dot.textContent=NOTES_LAT[ni]; return;
+  }
+  if(mode==='find'){
+    if(!quizTarget) return;
+    const cellKey=`${s}-${f}`;
+    if(findFoundSet.has(cellKey)) return; // ya pulsado
+    const ok=ni===quizTarget.note;
+    dot.className='note-dot '+(ok?'dot-correct':'dot-wrong'); dot.textContent=NOTES_LAT[ni];
+    const fb=document.getElementById('feedback-msg');
+    if(ok){
+      findFoundSet.add(cellKey);
+      findFound++;
+      const remaining=findTotal-findFound;
+      if(remaining>0){
+        fb.textContent=`${findFound}/${findTotal}`; fb.className='feedback-msg feedback-ok';
+        document.getElementById('quiz-text').innerHTML=
+          `Encuentra todas las <span>${NOTES_LAT[quizTarget.note]}</span> — quedan <span>${remaining}</span>`;
+      } else {
+        // todas encontradas
+        quizCorrect++; quizStreak++;
+        fb.textContent='¡Todas!'; fb.className='feedback-msg feedback-ok';
+        document.getElementById('stat-ok').textContent=quizCorrect;
+        document.getElementById('stat-streak').textContent=quizStreak;
+        setTimeout(()=>nextQuestion(), 1200);
+      }
+    } else {
+      quizStreak=0;
+      fb.textContent='Incorrecta'; fb.className='feedback-msg feedback-err';
+      document.getElementById('stat-streak').textContent=quizStreak;
+      // mostrar la nota errónea brevemente y ocultarla
+      setTimeout(()=>{
+        dot.className='note-dot dot-hidden'; dot.textContent='';
+      }, 700);
+    }
+  }
+}
+
+function setMode(m){
+  mode=m; revealedCells={};
+  ['explore','quiz','find','scale'].forEach(x=>document.getElementById('btn-'+x).classList.toggle('active',x===m));
+  document.getElementById('quiz-panel').style.display=(m==='quiz'||m==='find')?'flex':'none';
+  document.getElementById('note-picker').style.display=(m==='quiz')?'flex':'none';
+  document.getElementById('scale-controls').style.display=m==='scale'?'flex':'none';
+  document.getElementById('legend-area').style.display=(m==='explore'||m==='scale')?'flex':'none';
+  if(m==='quiz'||m==='find'){
+    quizCorrect=0;quizStreak=0;
+    document.getElementById('stat-ok').textContent=0;
+    document.getElementById('stat-streak').textContent=0;
+    document.getElementById('feedback-msg').textContent='';
+    nextQuestion();
+  }
+  refreshBoard();
+}
+
+function buildNotePicker(correctIdx){
+  const wrap = document.getElementById('note-keys');
+  wrap.innerHTML='';
+  NOTES_LAT.forEach((n,i)=>{
+    const btn=document.createElement('button');
+    btn.className='note-key'+(n.includes('♯')?' sharp':'');
+    btn.textContent=n;
+    btn.id=`nk-${i}`;
+    btn.onclick=()=>pickNote(i, correctIdx);
+    wrap.appendChild(btn);
+  });
+}
+
+let quizAnswered=false;
+
+function pickNote(pickedIdx, correctIdx){
+  if(quizAnswered) return;
+  quizAnswered=true;
+  const ok = pickedIdx===correctIdx;
+  const fb=document.getElementById('feedback-msg');
+
+  // Style the picked key
+  document.getElementById(`nk-${pickedIdx}`).className =
+    'note-key'+(NOTES_LAT[pickedIdx].includes('♯')?' sharp':'')+
+    (ok?' picked-ok':' picked-err');
+
+  // If wrong, also highlight the correct one
+  if(!ok){
+    const ck=document.getElementById(`nk-${correctIdx}`);
+    if(ck) { ck.className='note-key picked-ok'; }
+  }
+
+  // Disable all keys
+  document.querySelectorAll('.note-key').forEach(k=>k.classList.add('disabled'));
+
+  if(ok){
+    quizCorrect++; quizStreak++;
+    fb.textContent='¡Correcto!'; fb.className='feedback-msg feedback-ok';
+  } else {
+    quizStreak=0;
+    fb.textContent='Incorrecto'; fb.className='feedback-msg feedback-err';
+  }
+  document.getElementById('stat-ok').textContent=quizCorrect;
+  document.getElementById('stat-streak').textContent=quizStreak;
+
+  // Reveal the target cell on the board
+  if(quizTarget){
+    const {string:s,fret:f}=quizTarget;
+    revealedCells[`${s}-${f}`]=true;
+    const cell=document.getElementById(`cell-${s}-${f}`);
+    if(cell){
+      const dot=cell.querySelector('.note-dot');
+      const ni=noteAt(s,f);
+      dot.className='note-dot '+(ok?'dot-correct':'dot-wrong');
+      dot.textContent=NOTES_LAT[ni];
+      ring(dot);
+      playNote(s,f);
+    }
+  }
+}
+
+function nextQuestion(){
+  revealedCells={}; quizAnswered=false;
+  document.getElementById('feedback-msg').textContent='';
+  for(let s=0;s<6;s++) for(let f=0;f<NUM_FRETS;f++){
+    const c=document.getElementById(`cell-${s}-${f}`); if(!c) continue;
+    c.style.background=''; c.classList.remove('fret-highlight');
+    const d=c.querySelector('.note-dot'); if(d) d.style.opacity='';
+  }
+  if(mode==='quiz'){
+    const s=Math.floor(Math.random()*6),f=Math.floor(Math.random()*NUM_FRETS);
+    quizTarget={string:s,fret:f};
+    const correctNi=noteAt(s,f);
+    document.getElementById('quiz-text').innerHTML=
+      `¿Qué nota hay en la cuerda <span>${STR_NAMES[s]}</span>, traste <span>${f===0?'al aire':f}</span>?`;
+    const cell=document.getElementById(`cell-${s}-${f}`);
+    if(cell) cell.classList.add('fret-highlight');
+    for(let ss=0;ss<6;ss++) for(let ff=0;ff<NUM_FRETS;ff++){
+      const c=document.getElementById(`cell-${ss}-${ff}`),d=c&&c.querySelector('.note-dot');
+      if(d){d.className='note-dot dot-hidden';d.textContent='?';}
+    }
+    buildNotePicker(correctNi);
+  } else if(mode==='find'){
+    const ni=Math.floor(Math.random()*12); quizTarget={note:ni};
+    findFound=0; findFoundSet=new Set();
+    findTotal=0;
+    for(let s=0;s<6;s++) for(let f=0;f<NUM_FRETS;f++) if(noteAt(s,f)===ni) findTotal++;
+    document.getElementById('quiz-text').innerHTML=
+      `Encuentra todas las <span>${NOTES_LAT[ni]}</span> en el mástil <span style="font-size:0.8rem;opacity:0.6">(${findTotal} posiciones)</span>`;
+    for(let s=0;s<6;s++) for(let f=0;f<NUM_FRETS;f++){
+      const c=document.getElementById(`cell-${s}-${f}`),d=c&&c.querySelector('.note-dot');
+      if(d){d.className='note-dot dot-hidden';d.textContent='';d.style.opacity='';}
+    }
+  }
+}
+
+const rootBtns=document.getElementById('root-btns');
+NOTES_LAT.forEach((n,i)=>{
+  const b=document.createElement('button'); b.className='root-btn'+(i===0?' active':'');
+  b.textContent=n;
+  b.onclick=()=>{ selectedRoot=i; rootBtns.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); refreshBoard(); };
+  rootBtns.appendChild(b);
+});
+document.getElementById('scale-select').onchange=function(){ selectedScale=this.value; refreshBoard(); };
+
+buildBoard();
+
+// PWA Service Worker
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js')
+      .catch(e=>console.log('SW error:',e));
+  });
+}
+</script>
+</body>
+</html>
