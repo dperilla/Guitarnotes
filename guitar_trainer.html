@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -239,6 +240,30 @@
   }
   select:focus { border-color: var(--accent2); }
   .fret-highlight { background: rgba(200,169,110,0.07) !important; }
+
+  /* Pattern mode */
+  .pattern-controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:1.25rem; align-items:center; }
+  .pat-type-btn {
+    padding:5px 14px; border:0.5px solid var(--border2); border-radius:3px;
+    background:transparent; color:var(--text2); cursor:pointer;
+    font-size:0.78rem; font-family:'Syne',sans-serif; transition:all 0.15s;
+  }
+  .pat-type-btn:hover { background:var(--bg3); color:var(--text); }
+  .pat-type-btn.active { background:var(--bg3); color:var(--accent); border-color:var(--accent2); font-weight:700; }
+  .pat-note-btn {
+    padding:4px 10px; border:0.5px solid var(--border); border-radius:3px;
+    background:transparent; color:var(--text2); cursor:pointer;
+    font-size:0.72rem; font-family:'Space Mono',monospace; transition:all 0.12s;
+  }
+  .pat-note-btn:hover { background:var(--bg3); }
+  .pat-note-btn.active { background:#1e3050; color:#7bbfef; border-color:#1e5080; }
+  .pat-note-btn.sharp { background:var(--purple-bg); color:var(--purple-text); border-color:var(--purple-border); }
+  .pat-note-btn.sharp.active { background:#2a1e55; color:#c0b8ff; border-color:#7f77dd; }
+  .fretboard-container { position:relative; display:inline-block; min-width:100%; }
+  #pattern-svg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+  .caged-legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:0.75rem; font-size:0.7rem; font-family:'Space Mono',monospace; }
+  .caged-legend-item { display:flex; align-items:center; gap:5px; color:var(--text2); }
+  .caged-legend-dot { width:10px; height:10px; border-radius:50%; }
 </style>
 </head>
 <body>
@@ -272,6 +297,8 @@
     <button class="mode-btn" id="btn-quiz"    onclick="setMode('quiz')">Quiz: adivina la nota</button>
     <button class="mode-btn" id="btn-find"    onclick="setMode('find')">Quiz: encuentra la nota</button>
     <button class="mode-btn" id="btn-scale"   onclick="setMode('scale')">Escala / tonalidad</button>
+    <button class="mode-btn" id="btn-pattern" onclick="setMode('pattern')">Patrones</button>
+    <button class="mode-btn" id="btn-ladder"  onclick="setMode('ladder')">Escalera</button>
   </div>
 
   <div id="legend-area" class="legend">
@@ -293,8 +320,39 @@
     </select>
   </div>
 
+  <!-- Pattern controls -->
+  <div id="pattern-controls" class="pattern-controls" style="display:none;">
+    <span class="ctrl-label">Tipo:</span>
+    <button class="pat-type-btn active" id="pat-zigzag" onclick="setPatType('zigzag')">Zigzag (escalera)</button>
+    <button class="pat-type-btn" id="pat-caged" onclick="setPatType('caged')">CAGED</button>
+    <span class="ctrl-label" style="margin-left:8px;">Nota:</span>
+    <div id="pat-note-btns" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+  </div>
+  <div id="caged-legend" class="caged-legend" style="display:none;margin-bottom:1rem;">
+    <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#e05050"></span>C</span>
+    <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#e09030"></span>A</span>
+    <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#d4c040"></span>G</span>
+    <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#50b060"></span>E</span>
+    <span class="caged-legend-item"><span class="caged-legend-dot" style="background:#5090e0"></span>D</span>
+  </div>
+
+  <!-- Ladder controls -->
+  <div id="ladder-controls" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:0.8rem;align-items:center;">
+    <span class="ctrl-label">Nota raiz:</span>
+    <div id="ladder-note-btns" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+  </div>
+  <div id="ladder-legend" style="display:none;flex-wrap:wrap;gap:14px;margin-bottom:0.8rem;font-size:11px;font-family:monospace;color:var(--text2);">
+    <span style="color:#BA7517;">- - peldano corto (+2)</span>
+    <span style="color:#534AB7;">--- peldano largo (+3)</span>
+    <span style="color:#1D9E75;">... conexion / ascensor</span>
+  </div>
+
   <div class="fretboard-wrap">
-    <div id="fretboard" class="fretboard"></div>
+    <div class="fretboard-container" id="fretboard-container">
+      <div id="fretboard" class="fretboard"></div>
+      <svg id="pattern-svg" style="display:none;"></svg>
+      <svg id="ladder-svg" style="display:none;"></svg>
+    </div>
   </div>
 
   <div id="quiz-panel" class="quiz-panel" style="display:none;">
@@ -483,6 +541,12 @@ function renderDot(dot,s,f){
     } else { dot.className='note-dot dot-hidden'; dot.textContent='?'; }
   } else if(mode==='find'){
     dot.className='note-dot dot-hidden'; dot.textContent='';
+  } else if(mode==='pattern'){
+    const ni2=noteAt(s,f);
+    const sharp2=NOTES_LAT[ni2].includes('♯');
+    dot.className='note-dot '+(sharp2?'dot-sharp':'dot-natural');
+    dot.textContent=NOTES_LAT[ni2];
+    dot.style.opacity='0.18';
   }
 }
 
@@ -506,7 +570,7 @@ function handleClick(s,f,cell){
   playNote(s,f);
   ring(dot);
 
-  if(mode==='explore'||mode==='scale'){
+  if(mode==='explore'||mode==='scale'||mode==='pattern'){
     dot.style.transform='scale(1.22)'; setTimeout(()=>dot.style.transform='',200);
     return;
   }
@@ -553,11 +617,17 @@ function handleClick(s,f,cell){
 
 function setMode(m){
   mode=m; revealedCells={};
-  ['explore','quiz','find','scale'].forEach(x=>document.getElementById('btn-'+x).classList.toggle('active',x===m));
+  ['explore','quiz','find','scale','pattern'].forEach(x=>{
+    const b=document.getElementById('btn-'+x); if(b) b.classList.toggle('active',x===m);
+  });
   document.getElementById('quiz-panel').style.display=(m==='quiz'||m==='find')?'flex':'none';
   document.getElementById('note-picker').style.display=(m==='quiz')?'flex':'none';
   document.getElementById('scale-controls').style.display=m==='scale'?'flex':'none';
+  document.getElementById('pattern-controls').style.display=m==='pattern'?'flex':'none';
   document.getElementById('legend-area').style.display=(m==='explore'||m==='scale')?'flex':'none';
+  const svg=document.getElementById('pattern-svg');
+  svg.style.display=m==='pattern'?'block':'none';
+  if(m!=='pattern'){ svg.innerHTML=''; document.getElementById('caged-legend').style.display='none'; }
   if(m==='quiz'||m==='find'){
     quizCorrect=0;quizStreak=0;
     document.getElementById('stat-ok').textContent=0;
@@ -565,6 +635,7 @@ function setMode(m){
     document.getElementById('feedback-msg').textContent='';
     nextQuestion();
   }
+  if(m==='pattern') drawPattern();
   refreshBoard();
 }
 
@@ -663,6 +734,191 @@ function nextQuestion(){
     }
   }
 }
+
+/* ── PATTERNS ───────────────────────────────────────────────────── */
+let patType='zigzag', patNote=4; // default: zigzag, Mi
+
+// CAGED shapes: for each shape (C,A,G,E,D), intervals relative to root, per string offset from root fret
+// Format: array of {s: stringIndex(0=Mi grave), fretOffset, interval}
+// We'll compute them dynamically based on root note position
+const CAGED_COLORS = ['#e05050','#e09030','#d4c040','#50b060','#5090e0'];
+const CAGED_NAMES  = ['C','A','G','E','D'];
+
+// CAGED shapes defined as [string(0=low E), fret relative to root fret on that string]
+// Root frets on each string for each CAGED shape (relative offsets from root note)
+// Each shape: array of [stringIdx, fretOffset] pairs for all notes in that box
+const CAGED_SHAPES = {
+  // C shape: root on string 1 (B) open position style
+  C: [[0,3],[0,5],[1,3],[1,5],[2,2],[2,5],[3,2],[3,4],[3,5],[4,3],[4,5],[5,3],[5,5]],
+  // A shape: root on string 4 (D)
+  A: [[0,0],[0,2],[1,0],[1,2],[2,2],[3,2],[3,4],[4,0],[4,2],[4,4],[5,0],[5,2]],
+  // G shape: root on string 5 (A) and 0(E)
+  G: [[0,0],[0,2],[0,3],[1,0],[1,1],[1,3],[2,0],[2,2],[3,0],[3,2],[4,0],[4,2],[5,0],[5,2],[5,3]],
+  // E shape: root on string 0 (E) and 5(e)
+  E: [[0,0],[0,2],[1,0],[1,2],[2,1],[2,2],[3,2],[3,4],[4,2],[4,4],[5,0],[5,2]],
+  // D shape: root on string 3 (G) and string 0
+  D: [[0,0],[0,2],[1,0],[1,3],[2,0],[2,2],[3,0],[4,0],[4,2],[5,0],[5,2],[5,3]]
+};
+
+function buildPatNoteButtons(){
+  const wrap=document.getElementById('pat-note-btns');
+  wrap.innerHTML='';
+  NOTES_LAT.forEach((n,i)=>{
+    const b=document.createElement('button');
+    const sharp=n.includes('♯');
+    b.className='pat-note-btn'+(sharp?' sharp':'')+(i===patNote?' active':'');
+    b.textContent=n; b.dataset.ni=i;
+    b.onclick=()=>{
+      patNote=i;
+      wrap.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      drawPattern();
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function setPatType(t){
+  patType=t;
+  document.getElementById('pat-zigzag').classList.toggle('active',t==='zigzag');
+  document.getElementById('pat-caged').classList.toggle('active',t==='caged');
+  document.getElementById('caged-legend').style.display=t==='caged'?'flex':'none';
+  drawPattern();
+}
+
+function getCellCenter(s, f){
+  // s=0 is bottom row (string 6 visually = row index 5 from top after header)
+  // Board renders s=5 (top) down to s=0 (bottom)
+  // Header row height = 28px, each cell = 48px, label col = 44px, cell width = 58px
+  const HEADER_H = 28, CELL_H = 48, CELL_W = 58, LABEL_W = 44;
+  const rowFromTop = 5 - s; // s=5 → row 0, s=0 → row 5
+  const x = LABEL_W + f * CELL_W + CELL_W / 2;
+  const y = HEADER_H + rowFromTop * CELL_H + CELL_H / 2;
+  return {x, y};
+}
+
+function drawPattern(){
+  refreshBoard(); // redraw dots dimmed
+  const svg = document.getElementById('pattern-svg');
+  svg.innerHTML = '';
+
+  if(patType==='zigzag') drawZigzag(svg);
+  else drawCAGED(svg);
+}
+
+function drawZigzag(svg){
+  // Collect all positions of patNote sorted by fret then string
+  const positions = [];
+  for(let f=0;f<NUM_FRETS;f++){
+    for(let s=0;s<6;s++){
+      if(noteAt(s,f)===patNote) positions.push({s,f});
+    }
+  }
+
+  // Draw connecting lines between consecutive positions
+  for(let i=0;i<positions.length-1;i++){
+    const a=getCellCenter(positions[i].s, positions[i].f);
+    const b=getCellCenter(positions[i+1].s, positions[i+1].f);
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke','#c8a96e');
+    line.setAttribute('stroke-width','2');
+    line.setAttribute('stroke-opacity','0.55');
+    line.setAttribute('stroke-dasharray','4 3');
+    svg.appendChild(line);
+  }
+
+  // Draw highlighted dots on top
+  positions.forEach(({s,f},idx)=>{
+    const {x,y}=getCellCenter(s,f);
+    // Glow circle
+    const glow=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    glow.setAttribute('cx',x); glow.setAttribute('cy',y); glow.setAttribute('r',20);
+    glow.setAttribute('fill','rgba(200,169,110,0.08)');
+    svg.appendChild(glow);
+    // Main circle
+    const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx',x); circle.setAttribute('cy',y); circle.setAttribute('r',15);
+    circle.setAttribute('fill','#c8a96e');
+    circle.setAttribute('stroke','#8a6f3a'); circle.setAttribute('stroke-width','1');
+    svg.appendChild(circle);
+    // Index number
+    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',x); txt.setAttribute('y',y+1);
+    txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
+    txt.setAttribute('font-size','9'); txt.setAttribute('font-weight','700');
+    txt.setAttribute('font-family','Space Mono, monospace');
+    txt.setAttribute('fill','#0f0e0c');
+    txt.textContent=NOTES_LAT[patNote];
+    svg.appendChild(txt);
+  });
+}
+
+function drawCAGED(svg){
+  // Find root note fret on string 5 (high E) — use that as anchor
+  // For each CAGED shape, find the closest box starting from fret 0
+  const CELL_W=58, LABEL_W=44, HEADER_H=28, CELL_H=48;
+
+  // Find all frets where root appears on string 0 (low E)
+  const rootFrets=[];
+  for(let f=0;f<NUM_FRETS;f++) if(noteAt(0,f)===patNote) rootFrets.push(f);
+
+  // Each CAGED shape has a specific root position on low E string
+  // E shape: root on low E (string 0) at fret X
+  // A shape: root on A string (string 1) — on low E it's 5 semitones up
+  // G shape: root on low E 3 frets above A shape
+  // etc.
+  // Simpler: place 5 boxes evenly across the fretboard
+  // Root positions on low E for each shape (semitone offsets from root on low E)
+  const shapeRootOnLowE = { E:0, A:2, D:5, G:7, C:9 }; // relative to root fret on low E
+  const shapeOrder = ['C','A','G','E','D'];
+
+  // Get base root fret on low E (first occurrence)
+  const baseRootFret = rootFrets[0] ?? 0;
+
+  shapeOrder.forEach((shape,si)=>{
+    const color=CAGED_COLORS[si];
+    // Compute the box root fret
+    const offset = shapeRootOnLowE[shape];
+    let boxRoot = (baseRootFret + offset) % 12;
+    // Find nearest actual fret
+    let rf = boxRoot;
+    if(rf >= NUM_FRETS) rf = rf - 12;
+    if(rf < 0) rf = rf + 12;
+
+    // Draw notes for this shape
+    CAGED_SHAPES[shape].forEach(([strIdx, fretOff])=>{
+      const actualFret = rf + fretOff;
+      if(actualFret < 0 || actualFret >= NUM_FRETS) return;
+      const {x,y} = getCellCenter(strIdx, actualFret);
+      const isRoot = fretOff === 0 && strIdx === 0;
+
+      // Circle
+      const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx',x); circle.setAttribute('cy',y);
+      circle.setAttribute('r', noteAt(strIdx,actualFret)===patNote ? 16 : 11);
+      circle.setAttribute('fill', noteAt(strIdx,actualFret)===patNote ? color : color+'55');
+      circle.setAttribute('stroke', color); circle.setAttribute('stroke-width','1.5');
+      svg.appendChild(circle);
+
+      // Label
+      const ni=noteAt(strIdx,actualFret);
+      const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x',x); txt.setAttribute('y',y+1);
+      txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle');
+      txt.setAttribute('font-size', noteAt(strIdx,actualFret)===patNote?'8':'7');
+      txt.setAttribute('font-weight','700');
+      txt.setAttribute('font-family','Space Mono, monospace');
+      txt.setAttribute('fill', noteAt(strIdx,actualFret)===patNote?'#0f0e0c':'#fff');
+      txt.textContent = noteAt(strIdx,actualFret)===patNote ? shape : NOTES_LAT[ni];
+      svg.appendChild(txt);
+    });
+  });
+}
+
+// Init pattern note buttons
+buildPatNoteButtons();
 
 const rootBtns=document.getElementById('root-btns');
 NOTES_LAT.forEach((n,i)=>{
